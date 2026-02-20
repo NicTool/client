@@ -1,0 +1,50 @@
+
+body {
+  margin: 0;
+  border: solid red 1px;
+}
+
+.w100 {
+  width: 100%;
+}
+
+li {
+  list-style-type: none;
+}
+
+ul.topnav {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #39719D;
+}
+
+ul.topnav li {float: left;}
+
+ul.topnav li a {
+  display: block;
+  color: white;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+ul.topnav li a:hover:not(.active) {background-color: #111;}
+
+ul.topnav li a.active {background-color: #04AA6D;}
+
+ul.topnav li.right {float: right;}
+
+@media screen and (max-width: 600px) {
+  ul.topnav li.right,
+  ul.topnav li {float: none;}
+}
+
+footer {
+  text-align: center;
+  color: white;
+  padding-top: 0.5em;
+  background-color: #39719D;
+  /* border: solid red 1px; */
+}

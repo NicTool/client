@@ -1,0 +1,39 @@
+{
+  "name": "client",
+  "version": "0.1.0",
+  "description": "NicTool Client (web UI)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "develop": "npx vite",
+    "start": "npx vite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/NicTool/client.git"
+  },
+  "keywords": [
+    "nictool",
+    "dns",
+    "client",
+    "webui",
+    "frontend"
+  ],
+  "author": "matt@tnpi.net",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/NicTool/client/issues"
+  },
+  "homepage": "https://github.com/NicTool/client#readme",
+  "dependencies": {
+    "@nictool/dns-resource-record": "^1.2.2",
+    "@popperjs/core": "^2.11.8",
+    "bootstrap": "^5.3.5"
+  },
+  "devDependencies": {
+    "sass": "^1.86.3",
+    "vite": "^6.2.2"
+  }
+}
