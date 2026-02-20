@@ -8,6 +8,10 @@
     "build": "vite build",
     "develop": "npx vite",
     "start": "npx vite",
+    "prettier": "npx prettier *.json src --check",
+    "prettier:fix": "npx prettier *.json src --write",
+    "versions": "npx dependency-version-checker check",
+    "versions:fix": "npx dependency-version-checker update",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -28,12 +32,12 @@
   },
   "homepage": "https://github.com/NicTool/client#readme",
   "dependencies": {
-    "@nictool/dns-resource-record": "^1.2.2",
+    "@nictool/dns-resource-record": "^1.2.4",
     "@popperjs/core": "^2.11.8",
-    "bootstrap": "^5.3.5"
+    "bootstrap": "^5.3.8"
   },
   "devDependencies": {
-    "sass": "^1.86.3",
-    "vite": "^6.2.2"
+    "sass": "^1.97.3",
+    "vite": "^7.3.1"
   }
 }
