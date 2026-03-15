@@ -1,12 +1,17 @@
 // Import our custom CSS
 import "../scss/styles.scss";
+import "datatables.net-bs5/css/dataTables.bootstrap5.css";
 
 // Import all of Bootstrap's JS
 import * as bootstrap from "bootstrap";
+import DataTable from "datatables.net-bs5";
 
 import * as RR from "@nictool/dns-resource-record";
 
 const API_URI = "https://mattbook-m3.home.simerson.net:3000";
+let nsDataTable;
+let zoneDataTable;
+const zoneColumnSearchTimers = new Map();
 
 const ajax = async (config) => {
   const request = await fetch(config.url, {
@@ -171,87 +176,223 @@ function showNameservers() {
     url: `${API_URI}/nameserver`,
   }).then((response) => {
     console.log("GET /nameserver response", response);
-    document.getElementById("ns_table").innerHTML = "";
-    for (const ns of response.nameserver.sort((a, b) => a.id > b.id)) {
+    const table = document.getElementById("ns_table");
+    const tableHead = table.querySelector("thead");
+
+    // Remove existing filter row before re-initializing.
+    while (tableHead.rows.length > 1) {
+      tableHead.deleteRow(1);
+    }
+
+    if (nsDataTable) {
+      nsDataTable.destroy();
+      nsDataTable = undefined;
+    }
+
+    const body = table.querySelector("tbody");
+    body.innerHTML = "";
+
+    const sorted = response.nameserver
+      .slice()
+      .sort((a, b) => Number(a.id) - Number(b.id));
+
+    for (const ns of sorted) {
       const row = document.createElement("tr");
       row.classList.add("accordion-item");
       row.id = `ns_${ns.id}_tr`;
       row.innerHTML = `
-                <td>${ns.name}</td>
-                <td>${ns.description}</td>
-                <td style="text-align: right;">${ns.address}</td>
-                <td style="text-align: right;">${ns.address6}</td>
-                <td style="text-align: center">${ns.export.type}</td>
-                <td style="text-align: right"><button type="button" class="">⛭</button></td>
+                <td>${ns.name ?? ""}</td>
+                <td>${ns.description ?? ""}</td>
+                <td style="text-align: right;">${ns.address ?? ""}</td>
+                <td style="text-align: right;">${ns.address6 ?? ""}</td>
+                <td style="text-align: center">${ns.export?.type ?? ""}</td>
+                <td style="text-align: center"><button type="button" class="btn btn-sm btn-outline-secondary">⛭</button></td>
             `;
-      document.getElementById("ns_table").appendChild(row);
+      body.appendChild(row);
     }
+
+    const filterRow = tableHead.rows[0].cloneNode(true);
+    filterRow.classList.add("ns-filter-row");
+    for (let i = 0; i < filterRow.cells.length; i++) {
+      const cell = filterRow.cells[i];
+      if (i === filterRow.cells.length - 1) {
+        cell.innerHTML = "";
+        continue;
+      }
+      const title = tableHead.rows[0].cells[i].textContent.trim();
+      cell.innerHTML = `<input type="search" class="form-control form-control-sm" placeholder="Search ${title}" aria-label="Search ${title}">`;
+    }
+    tableHead.appendChild(filterRow);
+
+    nsDataTable = new DataTable(table, {
+      orderCellsTop: true,
+      pageLength: 25,
+      lengthMenu: [10, 25, 50, 100],
+      columnDefs: [
+        { orderable: false, searchable: false, targets: [5] },
+      ],
+      initComplete() {
+        const api = this.api();
+        api.columns().every(function (index) {
+          const input = filterRow.cells[index].querySelector("input");
+          if (!input) return;
+
+          input.addEventListener("input", () => {
+            if (this.search() !== input.value) {
+              this.search(input.value).draw();
+            }
+          });
+        });
+      },
+    });
   });
 }
 
 function showZones() {
   const ztbody = document.getElementById("zone_tbody");
   if (!ztbody) return;
+  const table = document.getElementById("zone_table");
+  if (!table) return;
 
-  ajax({
-    method: "GET",
-    url: `${API_URI}/zone`,
-  }).then((response) => {
-    console.log("GET /zone response", response);
-    for (const z of response.zone) {
-      const rows = [document.createElement("tr"), document.createElement("tr")];
-      rows[0].classList.add("accordion-item");
-      rows[0].id = `zone_${z.id}_tr`;
-      // rows[0].style = "border: 1px red solid;"
-      rows[0].innerHTML = `
-                <td id="zone_${z.id}_td">${z.zone}</td>
-                <td id="zone_${z.id}_desc">${z.description}</td>
-            `;
-      rows[0].setAttribute("data-bs-toggle", "collapse");
-      rows[0].setAttribute("data-bs-target", `#zone_${z.id}_rrs`);
-      rows[0].setAttribute("aria-expanded", "true");
-      rows[0].setAttribute("aria-controls", `zone_${z.id}_rrs`);
+  if (zoneDataTable) {
+    zoneDataTable.ajax.reload();
+    return;
+  }
 
-      rows[1].classList.add("accordion-collapse", "collapse");
-      rows[1].id = `zone_${z.id}_rrs`;
-      rows[1].innerHTML = `
-                <td colspan="2">
-                    <div class="accordion-body">
-                        <table id="zone_${z.id}_table" class="table table-md table-striped table-hover table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Type</th>
-                                    <th>TTL</th>
-                                    <th>Data</th>
-                                </tr>
-                            </thead>
-                            <tbody id="zone_${z.id}_tbody">
-                            </tbody>
-                        </table>
-                    </div>
-                </td>`;
+  const tableHead = table.querySelector("thead");
+  while (tableHead.rows.length > 1) {
+    tableHead.deleteRow(1);
+  }
 
-      ztbody.appendChild(rows[0]);
-      ztbody.appendChild(rows[1]);
-
-      document
-        .getElementById(`zone_${z.id}_tr`)
-        .addEventListener("click", (event) => {
-          showZoneRecords(z);
-        });
+  const filterRow = tableHead.rows[0].cloneNode(true);
+  filterRow.classList.add("zone-filter-row");
+  for (let i = 0; i < filterRow.cells.length; i++) {
+    if (i === 0) {
+      filterRow.cells[i].innerHTML = "";
+      continue;
     }
+    const title = tableHead.rows[0].cells[i].textContent.trim();
+    filterRow.cells[i].innerHTML = `<input type="search" class="form-control form-control-sm" placeholder="Search ${title}" aria-label="Search ${title}">`;
+  }
+  tableHead.appendChild(filterRow);
+
+  zoneDataTable = new DataTable(table, {
+    processing: true,
+    serverSide: true,
+    searchDelay: 400,
+    orderCellsTop: true,
+    pageLength: 25,
+    lengthMenu: [10, 25, 50, 100],
+    columnDefs: [{ orderable: false, searchable: false, targets: [0] }],
+    order: [[1, "asc"]],
+    columns: [
+      {
+        data: null,
+        defaultContent: "▸",
+        className: "text-center",
+      },
+      { data: "zone", defaultContent: "" },
+      { data: "description", defaultContent: "" },
+    ],
+    async ajax(data, callback) {
+      const params = new URLSearchParams();
+      params.set("limit", `${data.length}`);
+      params.set("offset", `${data.start}`);
+
+      const globalSearch = `${data.search?.value ?? ""}`.trim();
+      if (globalSearch) params.set("search", globalSearch);
+
+      const zoneLike = `${data.columns?.[1]?.search?.value ?? ""}`.trim();
+      if (zoneLike) params.set("zone_like", zoneLike);
+
+      const descriptionLike = `${data.columns?.[2]?.search?.value ?? ""}`.trim();
+      if (descriptionLike) params.set("description_like", descriptionLike);
+
+      const order = data.order?.[0] ?? { column: 1, dir: "asc" };
+      const sortBy = { 1: "zone", 2: "description" }[order.column] ?? "zone";
+      params.set("sort_by", sortBy);
+      params.set("sort_dir", order.dir === "desc" ? "desc" : "asc");
+
+      const response = await ajax({
+        method: "GET",
+        url: `${API_URI}/zone?${params.toString()}`,
+      });
+
+      const rows = response?.zone ?? [];
+      const total = response?.meta?.pagination?.total ?? rows.length;
+      const filtered = response?.meta?.pagination?.filtered ?? total;
+
+      callback({
+        data: rows,
+        recordsTotal: total,
+        recordsFiltered: filtered,
+      });
+    },
+    createdRow(row, data) {
+      row.id = `zone_${data.id}_tr`;
+      row.dataset.zoneId = `${data.id}`;
+      if (row.cells[0]) row.cells[0].textContent = "▸";
+    },
+    initComplete() {
+      const api = this.api();
+      api.columns().every(function (index) {
+        const input = filterRow.cells[index].querySelector("input");
+        if (!input) return;
+
+        input.addEventListener("input", () => {
+          clearTimeout(zoneColumnSearchTimers.get(index));
+          zoneColumnSearchTimers.set(
+            index,
+            setTimeout(() => {
+              if (this.search() !== input.value) {
+                this.search(input.value).draw();
+              }
+            }, 400),
+          );
+        });
+      });
+    },
   });
+
+  ztbody.onclick = (event) => {
+    const tr = event.target.closest("tr");
+    if (!tr) return;
+
+    const row = zoneDataTable.row(tr);
+    const zone = row.data();
+    if (!zone) return;
+
+    if (row.child.isShown()) {
+      row.child.hide();
+      tr.classList.remove("shown");
+      const indicator = tr.cells[0];
+      if (indicator) indicator.textContent = "▸";
+      return;
+    }
+
+    row.child(`
+                <div class="accordion-body">
+                    <table id="zone_${zone.id}_table" class="table table-md table-striped table-hover table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>TTL</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="zone_${zone.id}_tbody"></tbody>
+                    </table>
+                </div>
+            `).show();
+    tr.classList.add("shown");
+    const indicator = tr.cells[0];
+    if (indicator) indicator.textContent = "▾";
+    showZoneRecords(zone);
+  };
 }
 
 function showZoneRecords(zone) {
-  // console.log('showZoneRecords, zid:', zid);
-  const zrrs = document.getElementById(`zone_${zone.id}_tr`);
-  if (zrrs) {
-    // console.log('zrrs', zrrs);
-    if (zrrs.getAttribute("aria-expanded") === "false") return;
-  }
-
   const tbody = document.getElementById(`zone_${zone.id}_tbody`);
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -273,7 +414,8 @@ function showZoneRecords(zone) {
               ? zr.owner
               : `${zr.owner}.${zone.zone}.`;
         // console.log('owner', owner);
-        const asRR = new RR[zr.type]({ ...zr, owner: owner });
+        const rrCtor = RR[zr.type];
+        const asRR = new rrCtor({ ...zr, owner, type: rrCtor.name });
         // console.log('asRR', asRR)
         row.asRR = asRR;
         zr.rdata = asRR
@@ -456,7 +598,6 @@ function editZoneRecord(zone, zr, rr) {
   type.addEventListener("change", (event) => {
     const selected = event.target.selectedOptions[0];
     console.log("selected", selected);
-
     const newRR = new RR[selected.value](null);
     populateZrEditRdata(newRR, zr);
     typeRFCs.innerHTML = `RFCs: ${newRR

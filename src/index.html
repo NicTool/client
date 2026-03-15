@@ -162,15 +162,21 @@
             class="accordion-collapse collapse"
             data-bs-parent="#loggedInMain"
           >
-            <table id="ns_table" class="accordion-body col-11">
-              <tr>
-                <th style="text-align: left">Name</th>
-                <th style="text-align: left">Description</th>
-                <th style="text-align: right">IPv4</th>
-                <th style="text-align: right">IPv6</th>
-                <th style="text-align: center">Format</th>
-                <th style="text-align: center"></th>
-              </tr>
+            <table
+              id="ns_table"
+              class="accordion-body col-11 table table-striped table-hover table-bordered"
+            >
+              <thead>
+                <tr>
+                  <th style="text-align: left">Name</th>
+                  <th style="text-align: left">Description</th>
+                  <th style="text-align: right">IPv4</th>
+                  <th style="text-align: right">IPv6</th>
+                  <th style="text-align: center">Format</th>
+                  <th style="text-align: center">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
             </table>
           </div>
         </div>
@@ -208,6 +214,7 @@
               >
                 <thead>
                   <tr id="zone_th">
+                    <th style="text-align: center; width: 2rem"></th>
                     <th style="text-align: left">Zone</th>
                     <th style="text-align: left">Description</th>
                   </tr>
